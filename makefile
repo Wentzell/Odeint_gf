@@ -17,7 +17,7 @@ HEADERS := $(shell find $(HEADDIR) -type f -name '*.$(HEADEXT)')
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
 
 # Compiler Settings
-CFLAGS := -std=c++1y #-fopenmp # General compiler flags
+CFLAGS := -std=c++11 #-fopenmp # General compiler flags
 DBFLAGS := -O0 -g # Compiler flags for debugging
 PROFFLAGS := -O3 -g # Compiler flags for profiling
 LIB := 

@@ -33,8 +33,7 @@
  *    If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef REAK_ARITHMETIC_TUPLE_HPP
-#define REAK_ARITHMETIC_TUPLE_HPP
+#pragma once
 
 #include <tuple>
 
@@ -557,6 +556,32 @@ namespace ReaK {
 	 Idx, 
 	 boost::mpl::size_t<0> 
 	    >,
+	 double >::type tuple_norm_impl( const Tuple& tpl ) { return 0.0; };
+
+      template <typename Idx, typename Tuple>
+	 inline 
+	 typename boost::enable_if< 
+	 boost::mpl::greater< 
+	 Idx, 
+	 boost::mpl::size_t<0> 
+	    >,
+	 double >::type tuple_norm_impl( const Tuple& tpl ) {
+	    return std::max( norm( get<boost::mpl::prior<Idx>::type::value>(tpl) ), tuple_norm_impl< typename boost::mpl::prior<Idx>::type,Tuple >(tpl) );
+	 };
+
+      template <typename Tuple>
+	 inline double  tuple_norm_impl( const Tuple& tpl ) {
+	    return 0.0;
+	 };
+
+
+      template <typename Idx, typename Tuple>
+	 inline 
+	 typename boost::enable_if< 
+	 boost::mpl::equal_to< 
+	 Idx, 
+	 boost::mpl::size_t<0> 
+	    >,
 	 void >::type tuple_std_output_impl( std::ostream& lhs, const Tuple& rhs) { 
 	    lhs << "( " << get<Idx::type::value>(rhs);
 	 };
@@ -688,6 +713,13 @@ namespace ReaK {
 		  Tuple result;
 		  detail::tuple_abs_impl<arithmetic_tuple_size<Tuple>,Tuple>(result, tpl);
 		  return result;
+	       };
+
+    //norm( tuple )
+   template <typename Tuple>
+      typename boost::enable_if< is_instance_of_arithmetic_tuple<Tuple>,
+	       double >::type norm(const Tuple& tpl) {
+		  return detail::tuple_norm_impl<arithmetic_tuple_size<Tuple>,Tuple>(tpl);
 	       };
 
    // tuple *= tuple
@@ -834,7 +866,3 @@ namespace ReaK {
 
 
 }; // Reak
-
-
-#endif
-

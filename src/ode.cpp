@@ -123,8 +123,10 @@ int main(int /* argc */ , char** /* argv */ )
    double a = 10.0; 
 
    // Initialize current state
-   state_vec.Sig.init( []( const idx_1p_t& idx )->double{ return 1.0; } );
+   state_vec.Sig.init( []( const idx_1p_t& idx )->double{ return 1.1; } );
    state_vec.Gam.init( []( const idx_2p_t& idx )->double{ return 1.0; } );
+
+   cout << " norm( state_vec ) " << norm( state_vec ) << endl; 
 
    cout << " Gam0 init " << state_vec.Gam(0) << endl; 
 

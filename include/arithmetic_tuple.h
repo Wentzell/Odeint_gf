@@ -81,8 +81,8 @@ namespace ReaK {
       {}; 
 
    //template <typename Tuple, class Enable = void>
-      //struct arithmetic_tuple_size : 
-	 //boost::mpl::size_t< 0 > { };
+   //struct arithmetic_tuple_size : 
+   //boost::mpl::size_t< 0 > { };
 
    /**
     * This class template is a simple wrapper of a tuple with the addition of arithmetic operators. 
@@ -95,30 +95,37 @@ namespace ReaK {
    template <typename... T>
       class arithmetic_tuple : public std::tuple< T... > {
 	 public:
-	    typedef std::tuple< T... > arithmetic_tuple_base_class;
-	 public:
+	    typedef std::tuple< T... > base_t;
+
 	    typedef boost::mpl::size_t< sizeof... (T) > tuple_size_t; 
 
-	    constexpr arithmetic_tuple() : arithmetic_tuple_base_class() { };
+	    constexpr arithmetic_tuple() : base_t() { };
 
-	    explicit arithmetic_tuple( const double val ) : arithmetic_tuple_base_class() { };
-
-	    //explicit arithmetic_tuple(const T&... t) : arithmetic_tuple_base_class(t...) { };
+	    explicit arithmetic_tuple( const double val ) : base_t() { };
 
 	    template <typename... U>
-	       explicit arithmetic_tuple(U&&... u) : arithmetic_tuple_base_class(std::forward<U>(u)...) { };
+	       explicit arithmetic_tuple(U&&... u) : base_t(std::forward<U>(u)...) { };
 
-#ifndef BOOST_NO_CXX11_DEFAULTED_FUNCTIONS
 
-	    arithmetic_tuple(const arithmetic_tuple< T... >&) = default;
-	    arithmetic_tuple(arithmetic_tuple< T... >&&) = default;
+	    arithmetic_tuple( const arithmetic_tuple< T...>& Tuple ):    						
+	       base_t( Tuple )							
+	 {}       							
 
-	    arithmetic_tuple< T... >& operator=(const arithmetic_tuple< T... >&) = default;
-	    arithmetic_tuple< T... >& operator=(arithmetic_tuple< T... >&&) = default;
+	    arithmetic_tuple( arithmetic_tuple< T...>&& Tuple ):    						
+	       base_t( std::move(Tuple) )							
+	 {}       							
 
-#endif
+	    arithmetic_tuple< T...>& operator=( const arithmetic_tuple< T... >& Tuple )					
+	    {									
+	       base_t::operator=( Tuple ); 	
+	       return *this; 
+	    } 							
 
-	    //TODO: missing other standard-specified constructors (with other tuple types, and std::pair).
+	    arithmetic_tuple< T...>& operator=( arithmetic_tuple< T... >&& Tuple )						
+	    {								
+	       base_t::operator=( std::move( Tuple ) ); 
+	       return *this; 
+	    } 
 
       };
 
@@ -137,17 +144,17 @@ namespace ReaK {
       struct is_instance_of_arithmetic_tuple: public boost::is_convertible<test_class,arithmetic_tuple_conversion_tester>
    {}; 
 
-   //template <typename Tuple>
-      //struct arithmetic_tuple_size< Tuple, is_instance_of_arithmetic_tuple< Tuple >::value > : 
-      //Tuple::tuple_size_t { };
-
    template <typename Tuple>
       struct arithmetic_tuple_size: arithmetic_tuple_size_impl< Tuple, is_instance_of_arithmetic_tuple< Tuple >::value >
    {}; 
 
-   //template <typename... T>
-   //struct arithmetic_tuple_size< arithmetic_tuple< T... > > : 
-   //boost::mpl::size_t< sizeof... (T) > { };
+   template <class test_class>
+      struct is_scalar : std::false_type
+   {}; 
+
+   template<> struct is_scalar<double> : std::true_type { };  
+   template<> struct is_scalar<int> : std::true_type { };  
+   template<> struct is_scalar<std::complex<double>> : std::true_type { };  
 
    /**
     * This function template can be used to create an arithmetic-tuple.
@@ -335,6 +342,15 @@ namespace ReaK {
 	 void >::type tuple_add_impl( Tuple& result, const Tuple& lhs, const Tuple& rhs) {
 	    tuple_add_impl<typename boost::mpl::prior<Idx>::type,Tuple>(result,lhs,rhs);
 	    get<boost::mpl::prior<Idx>::type::value>(result) = get<boost::mpl::prior<Idx>::type::value>(lhs) + get<boost::mpl::prior<Idx>::type::value>(rhs);
+
+	    //std::cout << " performing addition at level " << boost::mpl::prior<Idx>::type::value << std::endl; 
+
+	    //if( boost::mpl::prior<Idx>::type::value == 2 )
+	    //{
+	       //std::cout << " adding lhs " << get<boost::mpl::prior<Idx>::type::value>(lhs)(2639) << std::endl; 
+	       //std::cout << " with rhs " << get<boost::mpl::prior<Idx>::type::value>(rhs)(2639) << std::endl; 
+	       //std::cout << " result " << get<boost::mpl::prior<Idx>::type::value>(rhs)(2639) << std::endl; 
+	    //}
 	 };
 
       template <typename Idx, typename Tuple>
@@ -569,11 +585,6 @@ namespace ReaK {
 	    return std::max( norm( get<boost::mpl::prior<Idx>::type::value>(tpl) ), tuple_norm_impl< typename boost::mpl::prior<Idx>::type,Tuple >(tpl) );
 	 };
 
-      template <typename Tuple>
-	 inline double  tuple_norm_impl( const Tuple& tpl ) {
-	    return 0.0;
-	 };
-
 
       template <typename Idx, typename Tuple>
 	 inline 
@@ -583,7 +594,7 @@ namespace ReaK {
 	 boost::mpl::size_t<0> 
 	    >,
 	 void >::type tuple_std_output_impl( std::ostream& lhs, const Tuple& rhs) { 
-	    lhs << "( " << get<Idx::type::value>(rhs);
+	    lhs << get<Idx::type::value>(rhs) << std::endl << std::endl;
 	 };
 
       template <typename Idx, typename Tuple>
@@ -595,7 +606,7 @@ namespace ReaK {
 	    >,
 	 void >::type tuple_std_output_impl( std::ostream& lhs, const Tuple& rhs) {
 	    tuple_std_output_impl<typename boost::mpl::prior<Idx>::type,Tuple>(lhs,rhs);
-	    lhs << "; " << get<Idx::type::value>(rhs);
+	    lhs << get<Idx::type::value>(rhs) << std::endl << std::endl;
 	 };
 
    }; // detail
@@ -663,7 +674,7 @@ namespace ReaK {
 
    // tuple * scalar
    template <typename Tuple, typename Scalar>
-      typename boost::enable_if< is_instance_of_arithmetic_tuple<Tuple>,
+      typename boost::enable_if< boost::mpl::and_< is_instance_of_arithmetic_tuple< Tuple >, is_scalar< Scalar > >,
 	       Tuple >::type operator *(const Tuple& lhs, const Scalar& rhs) {
 		  Tuple result;
 		  detail::tuple_muls_impl<arithmetic_tuple_size<Tuple>,Tuple,Scalar>(result, lhs, rhs);
@@ -672,7 +683,7 @@ namespace ReaK {
 
    // scalar * tuple
    template <typename Tuple, typename Scalar>
-      typename boost::enable_if< is_instance_of_arithmetic_tuple<Tuple>,
+      typename boost::enable_if< boost::mpl::and_< is_instance_of_arithmetic_tuple< Tuple >, is_scalar< Scalar > >,
 	       Tuple >::type operator *(const Scalar& lhs, const Tuple& rhs) {
 		  Tuple result;
 		  detail::tuple_smul_impl<arithmetic_tuple_size<Tuple>,Tuple,Scalar>(result, lhs, rhs);
@@ -681,7 +692,7 @@ namespace ReaK {
 
    // tuple * scalar
    template <typename Tuple, typename Scalar>
-      typename boost::enable_if< is_instance_of_arithmetic_tuple<Tuple>,
+      typename boost::enable_if< boost::mpl::and_< is_instance_of_arithmetic_tuple< Tuple >, is_scalar< Scalar > >,
 	       Tuple >::type operator /(const Tuple& lhs, const Scalar& rhs) {
 		  Tuple result;
 		  detail::tuple_divs_impl<arithmetic_tuple_size<Tuple>,Tuple,Scalar>(result, lhs, rhs);
@@ -690,7 +701,7 @@ namespace ReaK {
 
    // tuple + scalar
    template <typename Tuple, typename Scalar>
-      typename boost::enable_if< is_instance_of_arithmetic_tuple<Tuple>,
+      typename boost::enable_if< boost::mpl::and_< is_instance_of_arithmetic_tuple< Tuple >, is_scalar< Scalar > >,
 	       Tuple >::type operator +(const Tuple& lhs, const Scalar& rhs) {
 		  Tuple result;
 		  detail::tuple_adds_impl<arithmetic_tuple_size<Tuple>,Tuple,Scalar>(result, lhs, rhs);
@@ -699,7 +710,7 @@ namespace ReaK {
 
    // scalar + tuple
    template <typename Tuple, typename Scalar>
-      typename boost::enable_if< is_instance_of_arithmetic_tuple<Tuple>,
+      typename boost::enable_if< boost::mpl::and_< is_instance_of_arithmetic_tuple< Tuple >, is_scalar< Scalar > >,
 	       Tuple >::type operator +(const Scalar& lhs, const Tuple& rhs) {
 		  Tuple result;
 		  detail::tuple_sadd_impl<arithmetic_tuple_size<Tuple>,Tuple,Scalar>(result, lhs, rhs);
@@ -715,7 +726,7 @@ namespace ReaK {
 		  return result;
 	       };
 
-    //norm( tuple )
+   //norm( tuple )
    template <typename Tuple>
       typename boost::enable_if< is_instance_of_arithmetic_tuple<Tuple>,
 	       double >::type norm(const Tuple& tpl) {
@@ -740,7 +751,7 @@ namespace ReaK {
 
    // tuple *= scalar
    template <typename Tuple, typename Scalar>
-      typename boost::enable_if< is_instance_of_arithmetic_tuple<Tuple>,
+      typename boost::enable_if< boost::mpl::and_< is_instance_of_arithmetic_tuple< Tuple >, is_scalar< Scalar > >,
 	       Tuple& >::type operator *=(Tuple& lhs, const Scalar& rhs) {
 		  detail::tuple_smulassign_impl<arithmetic_tuple_size<Tuple>,Tuple,Scalar>(lhs, rhs);
 		  return lhs;
@@ -748,7 +759,7 @@ namespace ReaK {
 
    // tuple /= scalar
    template <typename Tuple, typename Scalar>
-      typename boost::enable_if< is_instance_of_arithmetic_tuple<Tuple>,
+      typename boost::enable_if< boost::mpl::and_< is_instance_of_arithmetic_tuple< Tuple >, is_scalar< Scalar > >,
 	       Tuple& >::type operator /=(Tuple& lhs, const Scalar& rhs) {
 		  detail::tuple_sdivassign_impl<arithmetic_tuple_size<Tuple>,Tuple,Scalar>(lhs, rhs);
 		  return lhs;
@@ -756,7 +767,7 @@ namespace ReaK {
 
    // tuple += scalar
    template <typename Tuple, typename Scalar>
-      typename boost::enable_if< is_instance_of_arithmetic_tuple<Tuple>,
+      typename boost::enable_if< boost::mpl::and_< is_instance_of_arithmetic_tuple< Tuple >, is_scalar< Scalar > >,
 	       Tuple& >::type operator +=(Tuple& lhs, const Scalar& rhs) {
 		  detail::tuple_saddassign_impl<arithmetic_tuple_size<Tuple>,Tuple,Scalar>(lhs, rhs);
 		  return lhs;
@@ -767,7 +778,6 @@ namespace ReaK {
       typename boost::enable_if< is_instance_of_arithmetic_tuple<Tuple>,
 	       std::ostream& >::type operator <<(std::ostream& out, const Tuple& rhs) {
 		  detail::tuple_std_output_impl<typename boost::mpl::prior< arithmetic_tuple_size<Tuple> >::type, Tuple>(out,rhs);
-		  return out << ")";
 	       };
 
 

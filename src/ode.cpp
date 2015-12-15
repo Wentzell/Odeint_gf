@@ -9,43 +9,49 @@
 using namespace ReaK; 
 using dcomplex = std::complex< double >; 
 
-const int N=10;//number of Matsubara frequencies
+const int N=100;//number of Matsubara frequencies
+
+#define INSERT_COPY_AND_ASSIGN(X) 					\
+X( const X & obj ):    							\
+   base_t( obj )							\
+{}       								\
+X( X && obj ):								\
+   base_t( std::move(obj) )						\
+{}      								\
+X & operator=( const X & obj )						\
+{									\
+   base_t::operator=( obj ); 						\
+   return *this; 							\
+} 									\
+X & operator=( X && obj )						\
+{									\
+   base_t::operator=( std::move( obj ) ); 				\
+   return *this; 							\
+} 
 
 enum class I1P{ w }; 
-class gf_1p_t : public gf< double, 1 > 		///< Container type for one-particle correlation function
+class gf_1p_t : public gf< dcomplex, 1 > 		///< Container type for one-particle correlation function
 {
    public:
-      using base_t = gf< double, 1 >; 
+      using base_t = gf< dcomplex, 1 >; 
 
       gf_1p_t():
-	 gf< double, 1 >( boost::extents[ffreq(N)] )
+	 gf< dcomplex, 1 >( boost::extents[ffreq(N)] )
    {}
-      gf_1p_t( const gf_1p_t& gf_obj ):
-	 base_t( gf_obj )
-   {}
-      const gf_1p_t& operator=( const gf_1p_t& gf_obj )
-      {
-	 base_t::operator=( gf_obj );
-      }
+      INSERT_COPY_AND_ASSIGN(gf_1p_t)
 }; 
 using idx_1p_t = gf_1p_t::idx_t; 
 
 enum class I2P{ W, w }; 
-class gf_2p_t : public gf< double, 2 > 		///< Container type for two-particle correlation functions
+class gf_2p_t : public gf< dcomplex, 2 > 		///< Container type for two-particle correlation functions
 {
    public:
-      using base_t = gf< double, 2 >; 
+      using base_t = gf< dcomplex, 2 >; 
 
       gf_2p_t():
-	 gf< double, 2 >( boost::extents[bfreq(N)][ffreq(N)] )
+	 gf< dcomplex, 2 >( boost::extents[bfreq(N)][ffreq(N)] )
    {}
-      gf_2p_t( const gf_2p_t& gf_obj ):
-	 base_t( gf_obj )
-   {}
-      const gf_2p_t& operator=( const gf_2p_t& gf_obj )
-      {
-	 base_t::operator=( gf_obj );
-      }
+      INSERT_COPY_AND_ASSIGN(gf_2p_t)
 }; 
 using idx_2p_t = gf_2p_t::idx_t; 
 
@@ -57,29 +63,16 @@ class state_t: public arithmetic_tuple< gf_1p_t, gf_2p_t >
       using Sig_t = gf_1p_t; 
       using Gam_t = gf_2p_t; 
 
-      gf_1p_t& Sig; 
-      gf_2p_t& Gam; 
+      inline Sig_t& Sig() { return( std::get<0>( *this ) ); } 
+      inline const Sig_t& Sig() const { return( std::get<0>( *this ) ); }
+
+      inline Gam_t& Gam() { return( std::get<1>( *this ) ); } 
+      inline const Gam_t& Gam() const { return( std::get<1>( *this ) ); }
 
       state_t():
-	Sig( std::get<0>( static_cast<base_t&>(*this) ) ),  
-	Gam( std::get<1>( static_cast<base_t&>(*this) ) )
+	 base_t()
    {}
-
-      state_t( const state_t& state_vec ):
-	 base_t( state_vec ), 
-	 Sig( std::get<0>( static_cast<base_t&>(*this) ) ),
-	 Gam( std::get<1>( static_cast<base_t&>(*this) ) )
-   {}
-      state_t& operator=( const base_t& Tuple )
-      {
-	 base_t::operator=( Tuple );
-      }
-
-      state_t& operator=( const state_t& state_vec )
-      {
-	 Sig = state_vec.Sig; 
-	 Gam = state_vec.Gam; 
-      }
+      INSERT_COPY_AND_ASSIGN(state_t)
 }; 
 
 // Norm of state_t, needed for adaptive stepping routines
@@ -91,7 +84,7 @@ namespace boost { namespace numeric { namespace odeint {
 	 double operator()( const state_t &p ) const
 	 {
 	    using namespace std; 
-	    return max( norm( p.Sig ), norm( p.Gam ) ); 
+	    return norm( p ); 
 	 }
       };
 }}}
@@ -102,12 +95,10 @@ class rhs_t{
       void operator()( const state_t &x , state_t &dxdt , const double  t  )
       {
 	 std::cout << " Evaluation at scale " << t << std::endl; 
-	 std::cout << " Gam0 " << x.Gam(0) << std::endl; 
+	 std::cout << " Tracking Gam0:  " << x.Gam()(0) << std::endl; 
 
-	 dxdt.Sig.init( []( const idx_1p_t& idx )->double{ return 1.0; } );
-	 dxdt.Gam.init( []( const idx_2p_t& idx )->double{ return 1.0; } );
-
-	 std::cout << " dGam0dx " << dxdt.Gam(0) << std::endl; 
+	 dxdt.Sig().init( []( const idx_1p_t& idx )->double{ return 1.0; } );
+	 dxdt.Gam().init( []( const idx_2p_t& idx )->double{ return 1.0; } );
       }
 };
 
@@ -123,12 +114,12 @@ int main(int /* argc */ , char** /* argv */ )
    double a = 10.0; 
 
    // Initialize current state
-   state_vec.Sig.init( []( const idx_1p_t& idx )->double{ return 1.1; } );
-   state_vec.Gam.init( []( const idx_2p_t& idx )->double{ return 1.0; } );
+   state_vec.Sig().init( []( const idx_1p_t& idx )->double{ return 1.1; } );
+   state_vec.Gam().init( []( const idx_2p_t& idx )->double{ return 1.2; } );
 
    cout << " norm( state_vec ) " << norm( state_vec ) << endl; 
 
-   cout << " Gam0 init " << state_vec.Gam(0) << endl; 
+   cout << " Gam0 init " << state_vec.Gam()(0) << endl; 
 
    // Save copies of initial gfs
 
@@ -154,5 +145,5 @@ int main(int /* argc */ , char** /* argv */ )
    //int steps = integrate_const( stepper, rhs, state_vec, LAM_START, LAM_FIN, INIT_STEP ); 
 
    // Output results
-   cout << " Gam0 final " << state_vec.Gam(0) << endl; 
+   cout << " Gam0 final " << state_vec.Gam()(0) << endl; 
 }
